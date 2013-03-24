@@ -7,6 +7,7 @@ This inspiration behind this utility is to be able to build a deferred stack for
 
 
 example:
+
     from gardenpath.finder import AccessManager
     from twisted.internet import reactor
     import pprint
