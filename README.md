@@ -7,6 +7,17 @@ This inspiration behind this utility is to be able to build a deferred stack for
 
 It's good to know the path a given request is going to take, when working with [QWebPage loadFinished](http://qt-project.org/doc/qt-4.8/qwebpage.html#loadFinished)
 
+The return value is a nested dictionary of the response headers.
+
+I've added 4 key/value pairs:
+* URI (the request url)
+* Reason-Phrase (from http response)
+* Status-Code (from http response)
+* Version (from http response)
+
+In addition I've added:
+* previous (nested request)
+
 
 example:
 
