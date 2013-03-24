@@ -4,6 +4,8 @@ from twisted.trial import unittest
 from twisted.web import resource, server
 from twisted.internet import reactor
 
+from twisted.internet.base import DelayedCall
+
 class FinderResource(resource.Resource):
     
     isLeaf = True
@@ -15,7 +17,7 @@ class FinderResource(resource.Resource):
     
     def render_GET(self, request):
         print 'render_GET', request.requestHeaders
-        request.write( str(request.requestHeaders) )
+        request.write( str(request.requestHeaders) ) 
         request.finish()
         return server.NOT_DONE_YET
      
@@ -26,13 +28,15 @@ class FinderServerTest(unittest.TestCase):
 
     def setUp(self):
         self.server = reactor.listenTCP(FinderServerTest.default_port, server.Site(FinderResource()))
+        self.am = AccessManager()
+        #DelayedCall.debug = True
     def tearDown(self):        
-        self.server.stopListening()
+        d = self.server.stopListening()
+        d.addCallback(lambda ign: self.am.connection_pool.closeCachedConnections())
+        return d
         
-    def test_local_resource(self):     
-        am = AccessManager()
-        d = am.get_url('localhost:' + str(self.default_port) )
+    def test_local_resource(self):        
+        d = self.am.get_url('localhost:' + str(self.default_port) )
         d.addCallback(lambda ign: True)
-        #d.addCallback(lambda ign: am.connection_pool.closeCachedConnections())
         d.addErrback(lambda ign: self.fail('access manager failure'))
         return d
