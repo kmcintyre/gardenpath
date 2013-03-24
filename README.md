@@ -1,7 +1,7 @@
 gardenpath
 ==========
 
-python twisted based URL auditing tool
+python twisted based URL auditing tool for twisted 12.1 or greater
 
 This inspiration behind this utility is to be able to build a deferred stack for webkit.
 
@@ -17,7 +17,6 @@ I've added 4 key/value pairs:
 
 In addition I've added:
 * previous (nested request)
-
 
 example:
 
