@@ -3,10 +3,15 @@ gardenpath
 
 python twisted based URL auditing tool for twisted 12.1 or greater
 
-This inspiration behind this utility is to be able to build a deferred stack for webkit.
+This inspiration behind this utility is to be able to build a list of deferreds for webkit.  When 
+working with [QWebPage](http://qt-project.org/doc/qt-4.8/qwebpage.html) and twisted, I want to utilize 
+prior knowledge (i.e. http://live.com -> http://home.live.com -> https://home.live.com -> https://mail.live.com -> 
+https://login.live.com) to build a path/route of expected deferreds that fire along each step of the process 
+within page.loadFinished
 
-It's good to know the path a given request is going to take, when working with [QWebPage loadFinished](http://qt-project.org/doc/qt-4.8/qwebpage.html#loadFinished)
-
+Hopefully it'll make it easier to answer questions - am I logged in?  was my submission valid?  
+Has the host routed me based on an http request header, or cookie policy?  
+   
 The return value is a nested dictionary of the response headers.
 
 I've added 4 key/value pairs:
@@ -62,5 +67,5 @@ python test/sample.py
                   'X-Frame-Options': 'SAMEORIGIN',
                   'X-XSS-Protection': '1; mode=block'}}
 
-
-
+                  
+imagine a list/sequence (of length 2) in page.loadFinished.connect slot and then load page. 

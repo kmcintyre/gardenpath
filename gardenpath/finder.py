@@ -34,10 +34,11 @@ class AccessManager():
     
     text_html = 'text/html'
 
-    def __init__(self, common_headers = None, use_cookies = True, pool = True, max_hops = 5, connection_timeout = 10):
+    '''    
+    '''    
+    def __init__(self, common_headers = None, use_cookies = True, pool = True, max_hops = 5, connection_timeout = 5):
         if pool:
-            self.connection_pool = HTTPConnectionPool(reactor, persistent=True)
-            self.connection_pool.cachedConnectionTimeout = connection_timeout
+            self.connection_pool = HTTPConnectionPool(reactor, persistent=True)            
         else:
             self.connection_pool = HTTPConnectionPool(reactor, persistent=False)
             
@@ -68,6 +69,12 @@ class AccessManager():
             for header, value in reply.headers.getAllRawHeaders():            
                 headers[header] = value[0]
             
+            try:
+                reply._transport.stopProducing()
+            except:
+                log.msg('bad reply?', logLevel=logging.CRITICAL )
+                raise Exception("bad reply?" + url)
+            
             try:                
                 headers[self.HTTP_STATUS_CODE] = reply.code
             except:
@@ -85,7 +92,7 @@ class AccessManager():
             except:
                 log.msg('no phrase', logLevel=logging.DEBUG )
                 raise Exception("Bad Response:" + url + " no " + self.HTTP_REASON_PHRASE)
-            
+                                    
         except Exception as e:
             he = HeaderException(e)
             he.setHeader(headers)
@@ -132,7 +139,16 @@ class AccessManager():
         if not timed_deferred.called or timed_deferred.paused:
             log.msg( 'cancel request to {0}'.format(url), logLevel=logging.INFO )  
             timed_deferred.cancel()
-    
+            
+    def _hang_up(self, answer, request):
+        log.msg( 'hang up {0}'.format(self.connection_pool._connections.keys()), logLevel=logging.INFO )        
+        if self.connection_pool._connections:
+            d = self.connection_pool.closeCachedConnections()
+            d.addBoth(lambda ign: answer)
+            return d
+        else:
+            return answer
+                
     def get_url(self, url, prev = None):
         log.msg( 'get url: {0}'.format(url), logLevel=logging.DEBUG)
         def previousCount(p):
@@ -155,5 +171,7 @@ class AccessManager():
         timer = reactor.callLater(self.connection_timeout, self.timeout_request, request, url)        
         request.addCallback(self._gather_headers, url, timer, prev)        
         request.addCallback(self._follow_)        
-        request.addErrback(self._request_error, url, prev)                
+        request.addErrback(self._request_error, url, prev)
+        if previousCount(prev) == 0:
+            request.addBoth(lambda answer: self._hang_up(answer, request))
         return request
