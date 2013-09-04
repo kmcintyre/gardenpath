@@ -1,6 +1,6 @@
 import pprint
 
-from gardenpath.finder import AccessManager
+from gardenpath.gardener import Gardener
 
 from twisted.internet import reactor
 
@@ -10,12 +10,13 @@ import csv
 
 if __name__ == '__main__':
 
-    am = AccessManager()
-    
     CONNECTION_LOST_MAX = 3
 
-    f = open('etc/resource/top-1m.csv', 'rb')
+    f = open('etc/top-1m.csv', 'rb')
     reader = csv.reader(f, delimiter=',')
+    
+    #for x in range(500225):
+    #    reader.next()
 
     def print_headers(hl, name):       
         print '    ', name
@@ -28,27 +29,28 @@ if __name__ == '__main__':
             new_error_count = error_count + 1
             return perform(domain, name, number, new_error_count)
         
-    def perform(url, name, number, error_count = 0):        
+    def perform(am, url, name, number, error_count = 0):        
         r = am.get_url(url)
         r.addCallback(print_headers, name)        
         r.addErrback(error_header, name, number, url, error_count)
         return r                        
             
-    def loop(name):
+    def loop(name, am):
         try:
             rn = reader.next()        
             print '', name, 'number', rn[0], 'url', rn[1]
-            r = perform(rn[1], name, rn[0]) 
-            r.addBoth(lambda ign: loop(name))
+            r = perform(am, rn[1], name, rn[0]) 
+            r.addBoth(lambda ign: loop(name, am))
         except Exception as e:
-            print 'loop exception', e
+            print 'LOOP EXCEPTION', e
 
     def launch(howmany):        
         print 'launch' + str(howmany)            
         if howmany > 0:
-            loop('test' + str(howmany))
+            loop('test' + str(howmany), Gardener())
             reactor.callLater(1, lambda: launch(howmany - 1))
         elif howmany == 0:
             print 'done!'
+            
     reactor.callLater(0, launch, 30)
     reactor.run()

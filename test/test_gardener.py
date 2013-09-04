@@ -1,4 +1,4 @@
-from gardenpath.finder import AccessManager
+from gardenpath.gardener import Gardener
 
 from twisted.trial import unittest
 from twisted.web import resource, server
@@ -8,7 +8,7 @@ from twisted.internet.base import DelayedCall
 
 import pprint
 
-class FinderResource(resource.Resource):
+class GardenerResource(resource.Resource):
     
     isLeaf = True
     allowedMethods = ("GET")
@@ -24,63 +24,77 @@ class FinderResource(resource.Resource):
         return server.NOT_DONE_YET
      
                      
-class FinderServerTest(unittest.TestCase):
+class GardenerServerTest(unittest.TestCase):
     
     default_port = 8111
 
     def setUp(self):
-        self.server = reactor.listenTCP(FinderServerTest.default_port, server.Site(FinderResource()))
-        self.am = AccessManager()
+        self.server = reactor.listenTCP(GardenerServerTest.default_port, server.Site(GardenerResource()))
+        self.gardener = Gardener()
         #DelayedCall.debug = True
         
     def tearDown(self):
-        print 'tearDown'
         d = self.server.stopListening()        
-        d.addCallback(lambda ign: self.am.connection_pool.closeCachedConnections())
+        d.addCallback(lambda ign: self.gardener.connection_pool.closeCachedConnections())
         return d
         
     def test_local_resource(self):        
-        d = self.am.get_url('localhost:' + str(self.default_port) )
+        d = self.gardener.get_url('localhost:' + str(self.default_port) )
         d.addCallback(lambda ign: True)
-        d.addErrback(lambda ign: self.fail('access manager failure'))
+        d.addErrback(lambda ign: self.fail('garden server failure'))
         return d
 
-class FinderTest(unittest.TestCase):
+class GardenerTest(unittest.TestCase):
 
     def setUp(self):
-        self.am = AccessManager()
-        #DelayedCall.debug = True
+        self.gardener = Gardener(verbose = True)
+        DelayedCall.debug = True
         
-    def tearDown(self):
-        print 'tearDown'
+    def tearDown(self):        
+        return self.gardener.connection_pool.closeCachedConnections()
 
+    # live has a long moved around
     def test_live_com(self):
         
-        d = self.am.get_url('live.com')
+        d = self.gardener.get_url('live.com')
         def outcome(dump):
             #print 'dump', pprint.pprint(dump)
             pass
         def err(error):
             print 'err', pprint.pprint(error)
-            self.fail('access manager failure')
+            self.fail('gardener failure')
                                     
+        d.addCallback(outcome)
+        d.addErrback(err)
+        return d
+    
+    
+    def test_netclaim_net(self):
+        #DelayedCall.debug = True
+        d = self.gardener.get_url('netclaim.net')
+        def outcome(dump):
+            print 'dump', pprint.pprint(dump)
+            return dump
+        def err(error):
+            print 'err', pprint.pprint(error)
+            self.fail('gardener failure')
+                                                
         d.addCallback(outcome)
         d.addErrback(err)
         return d
     
     def test_yieldmanager_com(self):
         
-        d = self.am.get_url('yieldmanager.com')
+        d = self.gardener.get_url('yieldmanager.com')
         def outcome(dump):
-            self.fail('access manager failure failure expected for yieldmanager.com')
+            self.fail('gardener failure expected for yieldmanager.com')
             #print 'dump', pprint.pprint(dump)
             pass
         def err(error):
             print 'failure is success', error.value.message
             #self.fail('access manager failure', error)
-            print 'err', pprint.pprint(error)            
+            #print 'err', pprint.pprint(error)            
                         
         d.addCallback(outcome)
         d.addErrback(err)
-        return d    
-    
+        return d        
