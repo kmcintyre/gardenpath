@@ -8,12 +8,12 @@ from twisted.web.client import Agent, CookieAgent, HTTPConnectionPool
 
 from twisted.web.xmlrpc import XMLRPC
 
-#from twisted.internet.error import DNSLookupError, ConnectError, ConnectionLost, ConnectionRefusedError, ConnectingCancelledError
 from twisted.internet import reactor
 
 from twisted.python import log
 
 import logging
+import sys
 
 class HeaderException(Exception):
 
@@ -30,6 +30,8 @@ class Gardener():
     HTTP_VERSION = 'Version'
     HTTP_STATUS_CODE = 'Status-Code'
     HTTP_URI = 'URI'
+    DNS = 'DNS'    
+    
     http_content_type = 'content-type'
     http_header_location = 'location'
     
@@ -43,10 +45,10 @@ class Gardener():
             if h.lower() == header.lower():
                 return v
         return None
+    
     '''
-    '''
-        
-    def __init__(self, common_headers = None, hang_up = True, use_cookies = True, pool = True, max_hops = 5, connection_timeout = 10, verbose = False):
+    '''        
+    def __init__(self, common_headers = None, hang_up = True, use_cookies = True, pool = True, dns = True, max_hops = 5, connection_timeout = 10, verbose = False):
         if pool:
             self.connection_pool = HTTPConnectionPool(reactor, persistent=True)            
         else:
@@ -58,12 +60,14 @@ class Gardener():
         else:
             self.agent = Agent(reactor, pool = self.connection_pool)
         
+        if verbose:
+            log.startLogging(sys.stdout)
+        
         self.hang_up = hang_up
         
         self.common_headers = common_headers
         self.max_hops = max_hops
         self.connection_timeout = connection_timeout
-        self.verbose = verbose
                 
     def _request_error(self, err, url, prev = None):
         log.msg('request_error: {0} for {1}'.format(err.value.message, url), logLevel=logging.CRITICAL)            
@@ -102,15 +106,12 @@ class Gardener():
             
             try:
                 if reply._transport:
-                    if self.verbose:
-                        print 'stop producing:', url
+                    log.msg( 'stop producing: {0}'.format(url), logLevel=logging.DEBUG) 
                     reply._transport.stopProducing()                
                     #if reply._transport._producer:
                     #    print 'Producer', reply._transport._producer.__class__.__name__
                     #    reply._transport._producer.loseConnection()                            
             except Exception as e:
-                if self.verbose:
-                    print 'error stopProducing', e 
                 log.msg('bad reply?: {0}'.format(e), logLevel=logging.CRITICAL)
                 raise Exception("bad reply?" + url)                                    
         except Exception as e:
@@ -153,31 +154,25 @@ class Gardener():
             timed_deferred.cancel()
         if timed_deferred.paused:
             def check_paused(paused_deferred):
-                if self.verbose:
-                    print 'paused deferred {0}'.format(paused_deferred)
+                log.msg('paused deferred {0}'.format(paused_deferred), logLevel=logging.INFO)
                 paused_deferred.cancel()
-            if self.verbose:
-                print 'paused!!! {0}'.format(url)
             reactor.callLater(self.connection_timeout, check_paused, timed_deferred)
 
     def _hang_up(self, answer, url):
-        if self.verbose:
-            print 'hang up:', url, self.connection_pool._connections.keys()
         log.msg('hang up {0}'.format(self.connection_pool._connections.keys()), logLevel=logging.INFO)        
         if self.connection_pool._connections or self.connection_pool._timeouts:
             d = self.connection_pool.closeCachedConnections()
             d.addBoth(lambda ign: answer)
             return d
         else:
-            if self.verbose:
-                print 'no hang up necessary:', url
+            log.msg('no hang up necessary: {0}'.format(url), logLevel=logging.DEBUG)
             return answer
 
     def get_url(self, url, prev = None):
         if not urlparse(url).scheme:
             log.msg('add http:// to {0}'.format(url), logLevel=logging.DEBUG)
-            url = "http://" + url                        
-        log.msg('get url: {0}'.format(url), logLevel=logging.DEBUG)
+            url = "http://" + url                            
+        log.msg('url: {0}'.format(url), logLevel=logging.INFO)
         def previousCount(p):
             if p is None: 
                 return 0
@@ -208,6 +203,5 @@ class GardenPathXMLRPCServer(Gardener, XMLRPC):
         XMLRPC.__init__(self, allowNone=True)        
         
     def xmlrpc_path(self, url):
-        if self.verbose:
-            print 'xmlrpc_path', url
+        log.msg('xmlrpc_path {0}'.format(url), logLevel=logging.DEBUG)
         return self.get_url(url)
